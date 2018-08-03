@@ -129,11 +129,11 @@ public class SdiSnpToPed{
 			e1.printStackTrace();
 		}
 		
-		ArrayList<String> chrs = new ArrayList<String>(50);
-		MarkerPostionsMap markerPostionsMap = new MarkerPostionsMap(50);
+		ArrayList<String> chrs = new ArrayList<String>(chromoSomeReadImpl.getChromoSomeHashMap().keySet().size());
+		MarkerPostionsMap markerPostionsMap = new MarkerPostionsMap(chromoSomeReadImpl.getChromoSomeHashMap().keySet().size());
 		for( String chrName : chromoSomeReadImpl.getChromoSomeHashMap().keySet() ){
 			chrs.add(chrName);
-			markerPostionsMap.put(chrName, new MarkerPostionS(2000000)); //0.5 M markers on each chromosome
+			markerPostionsMap.put(chrName, new MarkerPostionS(1500000)); //1.5 M markers on each chromosome
 		}
 		Collections.sort(chrs);
 
@@ -253,35 +253,42 @@ class SdiSnpToPedMultipleThread extends Thread{
 	
 	public void run( ){
 		accessionName=accessionName.replaceAll("\\.sdi", "");
-		HashMap<MarkerPostion, Character> markerPostionHashMap = new HashMap<MarkerPostion, Character>();
-		
+		//HashMap<MarkerPostion, Character> markerPostionHashMap = new HashMap<MarkerPostion, Character>(2000000);
+        StringBuffer thisResult = new StringBuffer();
 		String bwFilePosition = folderLocation + File.separator + accessionName + ".bw";
 		Path bwFile = Paths.get(bwFilePosition);
 		WigFileReader wig;
 		try {
 			wig = WigFileReader.autodetect(bwFile);
-		
 			MapFileImpl mapFileImpl = new MapFileImpl( sdiLocation + File.separator +accessionName + ".sdi");
+            System.out.println("running " + accessionName);
 			for( String chr : chrs ){
 				if(markerPostionAs.get(chr).size()>0) {
-                    System.out.println("running " + accessionName + " " + chr);
-					for (MarkerPostion markerPostion : markerPostionAs.get(chr)) {
+//                    System.out.println("running " + accessionName + " " + chr);
+                    ArrayList<MarkerPostion> markerPostions = markerPostionAs.get(chr);
+					for (MarkerPostion markerPostion : markerPostions) {
+//                        System.out.println("running " + accessionName + " " + chr+" " + markerPostion.getPosition());
+                        char theChar=markerPostion.getColNaChar();
 						HashSet<MapSingleRecord> mapSingleRecords = mapFileImpl.getOverLapRecordsByBasing(markerPostion.getChrName(), markerPostion.getPosition());
 						if (mapSingleRecords.size() > 0) {
 							for (MapSingleRecord mapSingleRecord : mapSingleRecords) {
 								Contig result = wig.query(markerPostion.getChrName(), markerPostion.getPosition(), markerPostion.getPosition());
 								double thisMean = result.mean();
 								if (Double.isNaN(thisMean) || thisMean < 2) {
-                                    markerPostionHashMap.put(markerPostion, 'N'); // low coverage
+                                    //markerPostionHashMap.put(markerPostion, 'N'); // low coverage
+                                    theChar = 'N';
 								} else {
 									if (mapSingleRecord.getBasement() == markerPostion.getPosition() && mapSingleRecord.getChanged() == 0 && mapSingleRecord.getOriginal().length() == 1 && !mapSingleRecord.getOriginal().contains("-") && mapSingleRecord.getResult().length() == 1) {
-										markerPostionHashMap.put(markerPostion, mapSingleRecord.getResult().toUpperCase().charAt(0));
-									} else if (mapSingleRecord.getBasement() <= markerPostion.getPosition() && mapSingleRecord.getChanged() > 0 && mapSingleRecord.getOriginal().contains("-")) {
+										//markerPostionHashMap.put(markerPostion, mapSingleRecord.getResult().toUpperCase().charAt(0));
+                                        theChar = mapSingleRecord.getResult().toUpperCase().charAt(0);
+									} /*else if (mapSingleRecord.getBasement() <= markerPostion.getPosition() && mapSingleRecord.getChanged() > 0 && mapSingleRecord.getOriginal().contains("-")) {
 
-									} else if (mapSingleRecord.getBasement() <= markerPostion.getPosition() && mapSingleRecord.getChanged() < 0 && (mapSingleRecord.getBasement() + Math.abs(mapSingleRecord.getChanged()) - 1) >= markerPostion.getPosition() && mapSingleRecord.getResult().contains("-")) {
-										markerPostionHashMap.put(markerPostion, '-');
+									} */else if (mapSingleRecord.getBasement() <= markerPostion.getPosition() && mapSingleRecord.getChanged() < 0 && (mapSingleRecord.getBasement() + Math.abs(mapSingleRecord.getChanged()) - 1) >= markerPostion.getPosition() && mapSingleRecord.getResult().contains("-")) {
+										//markerPostionHashMap.put(markerPostion, '-');
+                                        theChar= '-';
 									} else if (mapSingleRecord.getBasement() <= markerPostion.getPosition() && (mapSingleRecord.getBasement() + mapSingleRecord.getOriginal().length()) > markerPostion.getPosition()) {
-										markerPostionHashMap.put(markerPostion, 'N');
+										//markerPostionHashMap.put(markerPostion, 'N');
+                                        theChar='N';
 									}
 								}
 							}
@@ -289,9 +296,28 @@ class SdiSnpToPedMultipleThread extends Thread{
 							Contig result = wig.query(markerPostion.getChrName(), markerPostion.getPosition(), markerPostion.getPosition());
 							double thisMean = result.mean();
 							if (Double.isNaN(thisMean) || thisMean < 2) {
-                                markerPostionHashMap.put(markerPostion, 'N'); // low coverage
+//                                markerPostionHashMap.put(markerPostion, 'N'); // low coverage
+                                theChar='N';
 							}
 						}// this is added after generating public result end
+
+                        /*
+                        if (markerPostionHashMap.containsKey(markerPostion)) {
+                            theChar = markerPostionHashMap.get(markerPostion);
+                        } else {
+                            theChar = markerPostion.getColNaChar();
+                        }*/
+                        if (theChar == 'A') {
+                            thisResult.append("	A A");
+                        } else if (theChar == 'T') {
+                            thisResult.append("	T T");
+                        } else if (theChar == 'G') {
+                            thisResult.append("	G G");
+                        } else if (theChar == 'C') {
+                            thisResult.append("	C C");
+                        } else {
+                            thisResult.append("	0 0");
+                        }
 					}
                     System.out.println("done " + accessionName + " " + chr);
 				}
@@ -299,6 +325,7 @@ class SdiSnpToPedMultipleThread extends Thread{
 		} catch (WigFileFormatException | IOException | WigFileException e) {
 			e.printStackTrace();
 		}
+		/*
         StringBuffer thisResult = new StringBuffer();
         thisResult.append(accessionName + " " + accessionName + " 0 0 1	1");
         for( String chr : chrs) {
@@ -323,7 +350,7 @@ class SdiSnpToPedMultipleThread extends Thread{
                     }
                 }
             }
-        }
+        }*/
         pedOutPut.println(thisResult.toString());
 		System.out.println(accessionName + " finished");
 	}
