@@ -1,6 +1,8 @@
 # Introduction
 
 We provide example data to help go throw the pipeline. You need to modify some commands or scripts to run your own data.
+Irisas take sdi file format files as input. sdi file is simple than vcf files. The sequencing quality are sored in bw format.
+If you are using vcf file, you should transform vcf files into sdi format and bw format.
 
 ## Preparation
 Download and uncompress the test data:
@@ -84,7 +86,6 @@ cd ../
 mkdir result
 cd result
 java -jar ../disk/Irisas.jar NewSdiFromMsa -i ../originalSeq -l ../input/lineList -r Col -c ../input/chrList -o ./ -g ../input/
-perl ../script/mergeSdi.pl
 ````
 
 ## Reformat sdi files into PLINK files.
@@ -144,7 +145,7 @@ cd ../reference
 perl ../../script/exonerateSubmit.pl > command
 xjobs -j 10 -s command
 ````
-## Generate integrating effects for each accession
+## Generate ORF-states effects for each accession
 ````
 cd ../
 java -jar ../disk/Irisas.jar GenerateLofPed -a ../input/TAIR10_GFF3_genes_no_UM.gff -f PA9996 -s ../input/PA9996.sdi -m ../input/PA9996.fa -r ../input/Col.fa
@@ -166,4 +167,4 @@ And run command:
 ````
 plink --merge-list listForMerge --out orf
 ````
-You will get integrating effect file in PLINK format.
+You will get a integrating file in PLINK format.
